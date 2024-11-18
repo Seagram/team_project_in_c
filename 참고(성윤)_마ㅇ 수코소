@@ -1,0 +1,130 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h>
+#include <time.h>
+
+#define WIDTH 40
+#define HEIGHT 20
+#define MAX_ENEMIES 5
+
+char screen[HEIGHT][WIDTH];
+int playerX = WIDTH / 2;
+int bulletY = -1, bulletX = -1;
+int enemyX[MAX_ENEMIES], enemyY[MAX_ENEMIES];
+int score = 0;
+
+HANDLE console;
+COORD cursorPosition;
+
+// 콘솔 창 크기 설정
+void setupConsole() {
+    console = GetStdHandle(STD_OUTPUT_HANDLE);
+    SMALL_RECT windowSize = {0, 0, WIDTH + 1, HEIGHT + 1};
+    SetConsoleWindowInfo(console, TRUE, &windowSize);
+
+    COORD bufferSize = {WIDTH + 2, HEIGHT + 2};
+    SetConsoleScreenBufferSize(console, bufferSize);
+}
+
+// 마우스 위치 가져오기
+int getMouseX() {
+    POINT p;
+    GetCursorPos(&p);
+    ScreenToClient(GetConsoleWindow(), &p);
+    return p.x / 10; // 콘솔의 x 위치를 화면 좌표로 매핑
+}
+
+// 화면 출력
+void draw() {
+    system("cls");
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            if (i == HEIGHT - 1 && j == playerX) {
+                printf("▲");
+            } else if (i == bulletY && j == bulletX) {
+                printf("|");
+            } else {
+                int isEnemy = 0;
+                for (int k = 0; k < MAX_ENEMIES; k++) {
+                    if (i == enemyY[k] && j == enemyX[k]) {
+                        printf("●");
+                        isEnemy = 1;
+                        break;
+                    }
+                }
+                if (!isEnemy) {
+                    printf(" ");
+                }
+            }
+        }
+        printf("\n");
+    }
+    printf("Score: %d\n", score);
+}
+
+// 게임 상태 업데이트
+void update() {
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemyY[i]++;
+        if (enemyY[i] >= HEIGHT) {
+            enemyY[i] = 0;
+            enemyX[i] = rand() % WIDTH;
+        }
+    }
+
+    if (bulletY >= 0) {
+        bulletY--;
+        for (int i = 0; i < MAX_ENEMIES; i++) {
+            if (bulletY == enemyY[i] && bulletX == enemyX[i]) {
+                score++;
+                enemyY[i] = 0;
+                enemyX[i] = rand() % WIDTH;
+                bulletY = -1;
+                break;
+            }
+        }
+    }
+
+    if (bulletY < 0) {
+        bulletX = -1;
+        bulletY = -1;
+    }
+}
+
+// 입력 처리 (마우스 클릭 및 이동)
+void input() {
+    playerX = getMouseX(); // 마우스 x 좌표로 플레이어 이동
+
+    if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) { // 왼쪽 클릭으로 발사
+        if (bulletY == -1) {
+            bulletX = playerX;
+            bulletY = HEIGHT - 2;
+        }
+    }
+
+    Sleep(50); // 입력 속도 조정
+}
+
+void initialize() {
+    srand(time(0));
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            screen[i][j] = ' ';
+        }
+    }
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemyY[i] = rand() % 5;
+        enemyX[i] = rand() % WIDTH;
+    }
+}
+
+int main() {
+    setupConsole();
+    initialize();
+    while (1) {
+        draw();
+        input();
+        update();
+    }
+    return 0;
+}
